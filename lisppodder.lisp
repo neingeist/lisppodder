@@ -28,33 +28,27 @@
 (defun url-filename (url)
   (cl-ppcre:regex-replace ".*/(.*?)$" url "\\1"))
 
+(defun download-to-stream (url out-stream)
+  (destructuring-bind (response headers stream)
+      (block got
+	(destructuring-bind (response headers stream) (url-connection url)
+          (unless (member response '(301 302))
+	    (return-from got (list response headers stream)))
+	  (close stream)
+	  (setf url (cdr (assoc :location headers)))))
+    (cond
+      ((>= response 400)
+       (format t "Got error ~A from ~A" response url))
+      (t (copy-stream stream out-stream)
+	 (close stream)))))
+
 (defun download-to-string (url)
   (with-output-to-string (out-stream)
-    (destructuring-bind (response headers stream)
-      (block got
-        (destructuring-bind (response headers stream) (url-connection url)
-          (unless (member response '(301 302))
-            (return-from got (list response headers stream)))
-            (close stream)
-            (setf url (cdr (assoc :location headers)))))
-      (cond
-        ((>= response 400) (format t "Got error ~A from ~A" response url))
-        (t (copy-stream stream out-stream)))
-      (close stream))))  
-  
-(defun download-to-file (url file-name)
-  (destructuring-bind (response headers stream)
-    (block got
-      (destructuring-bind (response headers stream) (url-connection url)
-        (unless (member response '(301 302))
-          (return-from got (list response headers stream)))
-          (close stream)
-          (setf url (cdr (assoc :location headers)))))
-    (cond
-      ((>= response 400) (format t "Got error ~A from ~A" response url))
-      (t (with-open-file (o file-name :direction :output :if-exists :supersede)
-        (copy-stream stream o))))
-     (close stream)))
+    (download-to-stream url out-stream)))
+
+(defun download-to-file (url file-name &key (if-exists :supersede))
+  (with-open-file (s file-name :direction :output :if-exists if-exists)
+    (download-to-stream url s)))
   
 
 ;; the following is shamelessy stolen from asdf-install
