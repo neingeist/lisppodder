@@ -47,8 +47,8 @@
     (download-to-stream url out-stream)))
 
 (defun download-to-file (url file-name &key (if-exists :supersede))
-  (with-open-file (s file-name :direction :output :if-exists if-exists)
-    (download-to-stream url s)))
+  (with-open-file (out-stream file-name :direction :output :if-exists if-exists)
+    (download-to-stream url out-stream)))
   
 
 ;; the following is shamelessy stolen from asdf-install
